@@ -18,21 +18,24 @@ in `upcheck_admin`.
 inside its Next.js routes — hence this separate persistent process (same
 operational shape as `upcheck_meetings_bot`).
 
-## Status: Phase 0 + Phase 1
+## Status: Phases 0–3
 
 Implemented so far:
 
-- **Phase 0 — foundation:** HTTP server + `/health`, Socket.IO with
+- **Phase 0 — foundation:** HTTP server + `/health` + `/ping`, Socket.IO with
   short-lived JWT handshake auth (`src/auth.js`), MongoDB connection
   (`src/db.js`), authorized room join/leave with membership checks mirroring
   the poll routes (`src/rooms.js`).
 - **Phase 1 — presence:** in-memory `userId -> Set<socketId>` registry with a
-  disconnect grace window, `presence:online` / `presence:offline` /
-  `presence:snapshot` events, and an opportunistic `admin_users.lastActive`
-  bump so the polling fallback stays accurate (`src/presence.js`).
+  disconnect grace window, `presence:*` events, opportunistic
+  `admin_users.lastActive` bump (`src/presence.js`).
+- **Phase 2 — typing:** pure in-memory typing relay over joined rooms with
+  server-side auto-expiry (`src/typing.js`).
+- **Phase 3 — messaging:** Change Stream watchers on `chat_messages`,
+  `team_messages`, `group_chat_messages` that emit `message:new` /
+  `message:updated` to the matching room (`src/changeStreams/messages.js`).
 
-Not yet implemented (later phases): typing relay, message/notification Change
-Stream watchers.
+Not yet implemented: notification Change Stream (Phase 4).
 
 ## Run locally
 
@@ -67,6 +70,13 @@ socket.on('presence:offline', ({ userId }) => { /* mark offline */ });
 | `presence:offline` | server→client | `{ userId }` | After grace window |
 | `join` | client→server | `{ kind: 'dm'\|'team'\|'group', id }`, ack | Membership-checked |
 | `leave` | client→server | `{ kind, id }`, ack | |
+| `typing:start` | client→server | `{ kind, id }` | Relayed to room; auto-expires ~4s |
+| `typing:stop` | client→server | `{ kind, id }` | |
+| `typing:update` | server→client | `{ kind, id, room, userId, username, typing }` | To others in room |
+| `message:new` | server→client | `{ kind, id, message }` | Change Stream insert |
+| `message:updated` | server→client | `{ kind, id, message }` | Change Stream update/replace |
+
+Endpoints: `GET /health` (status + DB + online count), `GET /ping` (cheap liveness/latency).
 
 ## Deploy
 

@@ -10,21 +10,38 @@ const db = require('./db');
 const { socketAuthMiddleware } = require('./auth');
 const presence = require('./presence');
 const { registerRoomHandlers, roomFor } = require('./rooms');
+const { registerTypingHandlers } = require('./typing');
+const { startMessageStreams } = require('./changeStreams/messages');
 
 validateConfig();
 
 const app = express();
 app.use(cors({ origin: config.corsOrigins, credentials: true }));
 
-// Health check for the host's uptime probe. Reports connected socket count so
-// a quick curl tells you the pipe is alive without opening a client.
+// Health check for the host's uptime probe. Reports connected socket count and
+// DB connectivity so a quick curl tells you the pipe is alive without opening a
+// client.
 app.get('/health', (req, res) => {
+  let dbConnected = false;
+  try {
+    dbConnected = !!db.getDb();
+  } catch {
+    dbConnected = false;
+  }
   res.json({
     ok: true,
     service: 'upcheck_realtime',
+    db: dbConnected ? 'connected' : 'disconnected',
     online: presence.onlineUserIds().length,
     uptimeSec: Math.round(process.uptime()),
+    ts: new Date().toISOString(),
   });
+});
+
+// Lightweight liveness/latency probe — does no work (no DB, no presence read),
+// so it's cheap to poll frequently for round-trip timing.
+app.get('/ping', (req, res) => {
+  res.json({ pong: true, ts: Date.now() });
 });
 
 const server = http.createServer(app);
@@ -58,8 +75,11 @@ io.on('connection', (socket) => {
   // UI is correct immediately without waiting for events.
   socket.emit('presence:snapshot', { userIds: presence.onlineUserIds() });
 
-  // Authorized room join/leave for typing & messaging (later phases).
+  // Authorized room join/leave for typing & messaging.
   registerRoomHandlers(socket);
+
+  // Typing relay (Phase 2) — in-memory, only for rooms the socket has joined.
+  registerTypingHandlers(io, socket);
 
   socket.on('disconnect', () => {
     presence.removeSocket(userId, socket.id, (goneUserId) => {
@@ -71,6 +91,7 @@ io.on('connection', (socket) => {
 async function start() {
   await db.connect();
   presence.init(io);
+  startMessageStreams(io); // Phase 3: fan out inserts/updates to rooms
   server.listen(config.port, () => {
     // eslint-disable-next-line no-console
     console.log(
