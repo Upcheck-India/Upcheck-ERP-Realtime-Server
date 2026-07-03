@@ -1,0 +1,24 @@
+{
+  "name": "upcheck_realtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Realtime delivery layer (Socket.IO + MongoDB Change Streams) for Upcheck presence, typing, messaging, and notifications. Reads MongoDB only; never a write path. Clients still POST to upcheck_admin as today.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "cross-env NODE_ENV=development node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.12.0",
+    "socket.io": "^4.8.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
