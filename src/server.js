@@ -12,6 +12,7 @@ const presence = require('./presence');
 const { registerRoomHandlers, roomFor } = require('./rooms');
 const { registerTypingHandlers } = require('./typing');
 const { startMessageStreams } = require('./changeStreams/messages');
+const { startNotificationStream } = require('./changeStreams/notifications');
 
 validateConfig();
 
@@ -92,6 +93,7 @@ async function start() {
   await db.connect();
   presence.init(io);
   startMessageStreams(io); // Phase 3: fan out inserts/updates to rooms
+  startNotificationStream(io); // Phase 4: fan out admin_notifications inserts
   server.listen(config.port, () => {
     // eslint-disable-next-line no-console
     console.log(
