@@ -84,7 +84,7 @@ async function bumpLastActive(userId) {
     if (!_id) return;
     await db
       .collection('admin_users')
-      .updateOne({ _id }, { $set: { lastActive: new Date() } });
+      .updateOne({ _id }, { $set: { lastActive: new Date(), lastHeartbeat: new Date() } });
   } catch {
     /* best-effort; presence still works from the in-memory map */
   }
@@ -99,7 +99,7 @@ async function bumpLastActiveForConnected() {
     if (!objIds.length) return;
     await db
       .collection('admin_users')
-      .updateMany({ _id: { $in: objIds } }, { $set: { lastActive: new Date() } });
+      .updateMany({ _id: { $in: objIds } }, { $set: { lastActive: new Date(), lastHeartbeat: new Date() } });
   } catch {
     /* best-effort */
   }
