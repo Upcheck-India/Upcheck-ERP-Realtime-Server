@@ -52,8 +52,13 @@ const io = new Server(server, {
   // Allow the polling transport as a fallback for clients behind proxies that
   // block WebSocket upgrades (relevant for an enterprise ERP network).
   transports: ['websocket', 'polling'],
-  pingInterval: 25000,
-  pingTimeout: 20000,
+  // A hard disconnect (app backgrounded/killed, network drop) has no TCP FIN
+  // to react to — Socket.IO only notices via this ping/pong heartbeat. At
+  // 25000/20000 that was up to 45s of "still shows online" after a user was
+  // actually gone, on top of the presence grace window below. Tightened to
+  // bound worst-case detection at ~18s.
+  pingInterval: 10000,
+  pingTimeout: 8000,
 });
 
 io.use(socketAuthMiddleware);

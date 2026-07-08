@@ -21,11 +21,14 @@ const config = {
     .filter(Boolean),
   // Grace window (ms) before a disconnect is broadcast as offline, to absorb
   // page reloads / app backgrounding blips without a flicker.
-  presenceGraceMs: parseInt(process.env.PRESENCE_GRACE_MS || '5000', 10),
-  // How often (ms) to opportunistically bump admin_users.lastActive for
-  // connected users so the polling fallback (/api/online-users) stays roughly
-  // accurate too.
-  lastActiveBumpMs: parseInt(process.env.LAST_ACTIVE_BUMP_MS || '60000', 10),
+  presenceGraceMs: parseInt(process.env.PRESENCE_GRACE_MS || '3000', 10),
+  // How often (ms) to opportunistically bump admin_users.lastHeartbeat for
+  // connected users so the polling fallback (/api/online-users) stays
+  // accurate. Must stay comfortably under that endpoint's freshness cutoff
+  // (currently 30s there) — this was 60000 against a 20000 cutoff, meaning a
+  // genuinely-connected user was reported offline by that endpoint for ~40 of
+  // every 60 seconds.
+  lastActiveBumpMs: parseInt(process.env.LAST_ACTIVE_BUMP_MS || '15000', 10),
   nodeEnv: process.env.NODE_ENV || 'production',
 };
 
