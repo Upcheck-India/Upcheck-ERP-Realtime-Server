@@ -12,7 +12,7 @@ const config = {
   port: parseInt(process.env.PORT || '4001', 10),
   mongoUri: process.env.MONGODB_URI || '',
   mongoDbName: process.env.MONGODB_DB || 'resources',
-  jwtSecret: process.env.REALTIME_JWT_SECRET || '',
+  jwtSecret: process.env.REALTIME_JWT_SECRET || 'default_realtime_jwt_secret_key_for_development',
   // Comma-separated allowlist of web origins for CORS. The RN app sends no
   // Origin header so it is unaffected; this only gates the browser console.
   corsOrigins: (process.env.CORS_ORIGINS || 'https://erp.upcheck.in')
