@@ -13,11 +13,19 @@ const { registerRoomHandlers, roomFor } = require('./rooms');
 const { registerTypingHandlers } = require('./typing');
 const { startMessageStreams } = require('./changeStreams/messages');
 const { startNotificationStream } = require('./changeStreams/notifications');
+const appstoreRoutes = require('./appstore/routes');
 
 validateConfig();
 
 const app = express();
 app.use(cors({ origin: config.corsOrigins, credentials: true }));
+
+// App Store upload/download — moved from Vercel/upcheck_admin (see
+// appstore/routes.js header comment). No express.json()/express.raw() body
+// parser is registered anywhere in this file, which is intentional: the
+// upload route needs the raw, unconsumed request stream to pipe directly
+// into storage without buffering the whole APK in memory first.
+app.use('/appstore', appstoreRoutes);
 
 // Health check for the host's uptime probe. Reports connected socket count and
 // DB connectivity so a quick curl tells you the pipe is alive without opening a
@@ -46,6 +54,14 @@ app.get('/ping', (req, res) => {
 });
 
 const server = http.createServer(app);
+
+// Node 18+ defaults requestTimeout to 300000ms (5 min), which could kill a
+// large APK upload over a slow mobile connection mid-transfer. This service
+// has no execution-time ceiling to work around (that was the whole Vercel
+// problem) — disable Node's own request timeout for App Store transfers.
+// headersTimeout stays at a sane default (protects against slow-header DoS);
+// only the full-request timeout is relevant here since headers arrive fast.
+server.requestTimeout = 0;
 
 const io = new Server(server, {
   cors: { origin: config.corsOrigins, credentials: true },
