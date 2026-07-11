@@ -13,6 +13,7 @@ const { registerRoomHandlers, roomFor } = require('./rooms');
 const { registerTypingHandlers } = require('./typing');
 const { startMessageStreams } = require('./changeStreams/messages');
 const { startNotificationStream } = require('./changeStreams/notifications');
+const { startStatusStreams } = require('./changeStreams/status');
 const appstoreRoutes = require('./appstore/routes');
 
 validateConfig();
@@ -115,6 +116,7 @@ async function start() {
   presence.init(io);
   startMessageStreams(io); // Phase 3: fan out inserts/updates to rooms
   startNotificationStream(io); // Phase 4: fan out admin_notifications inserts
+  startStatusStreams(io); // Status updates: new-status + viewed fan-out
   server.listen(config.port, () => {
     // eslint-disable-next-line no-console
     console.log(
