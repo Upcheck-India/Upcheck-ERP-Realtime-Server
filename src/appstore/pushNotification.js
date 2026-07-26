@@ -20,13 +20,20 @@ async function sendPushNotification(userId, title, body, data = {}) {
 
     if (!user || tokens.length === 0) return;
 
+    // One live tray entry per app instead of one per version bump: `tag`
+    // replaces an already-displayed notification on Android, `collapseId`
+    // does the equivalent on iOS (and coalesces in transit on both). Mirrors
+    // threadKeyFor() in upcheck_admin/src/lib/pushNotifications.js.
+    const threadKey = data && data.appId ? `appstore:${data.appId}` : null;
+
     const messages = tokens.map((token) => ({
       to: token,
       sound: 'default',
       priority: 'high',
+      ...(threadKey ? { tag: threadKey, collapseId: threadKey } : {}),
       title,
       body,
-      data,
+      data: { ...data, recipientUserId: String(userId) },
     }));
 
     await fetch('https://exp.host/--/api/v2/push/send', {
