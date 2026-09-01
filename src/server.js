@@ -5,7 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const { Server } = require('socket.io');
 
-const { config, validateConfig } = require('./config');
+const { config, validateConfig, jwtSecretFingerprint } = require('./config');
 const db = require('./db');
 const { socketAuthMiddleware } = require('./auth');
 const presence = require('./presence');
@@ -43,6 +43,9 @@ app.get('/health', (req, res) => {
     service: 'upcheck_realtime',
     db: dbConnected ? 'connected' : 'disconnected',
     online: presence.onlineUserIds().length,
+    // Compare against POST /api/realtime/token in upcheck_admin. Different
+    // values there and here means no socket in the fleet can authenticate.
+    jwtSecretFingerprint: jwtSecretFingerprint(),
     uptimeSec: Math.round(process.uptime()),
     ts: new Date().toISOString(),
   });
