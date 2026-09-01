@@ -14,6 +14,7 @@ const { pipeline } = require('stream/promises');
 const crypto = require('crypto');
 const { sendPushNotification } = require('./pushNotification');
 const { getActiveProvider, getProviderForVersion } = require('./storage');
+const { deleteVersionFile, sweepOrphans } = require('./orphans');
 
 const MAX_APK_SIZE_BYTES = 250 * 1024 * 1024; // 250MB
 const VERSION_RE = /^\d{1,4}(\.\d{1,4}){1,3}(-[a-zA-Z0-9.]+)?$/;
@@ -142,9 +143,21 @@ async function finalizeApkUpload({ db, app, meta, sourceStream }) {
   if (updatedVersions.length > 3) {
     updatedVersions.sort((a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime());
     const oldest = updatedVersions[0];
-    await getProviderForVersion(oldest).deleteFile(db, oldest).catch(() => {});
+    // The retention drop is where binaries were being stranded: the shift()
+    // below removes the only record of this file, so if the delete quietly
+    // failed the bytes stayed forever with nothing referencing them.
+    // deleteVersionFile records the reference on failure instead.
+    await deleteVersionFile(db, oldest, getProviderForVersion(oldest), {
+      appId: String(app._id),
+      version: oldest.version || null,
+      reason: 'retention',
+    });
     updatedVersions.shift();
   }
+
+  // Retry earlier failures now. An upload is when storage pressure actually
+  // matters, and hanging this here means no scheduler has to exist.
+  sweepOrphans(db, getProviderForVersion).catch(() => {});
 
   updatedVersions.sort((a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime());
   const latestVerStr = updatedVersions[updatedVersions.length - 1]?.version || meta.version;

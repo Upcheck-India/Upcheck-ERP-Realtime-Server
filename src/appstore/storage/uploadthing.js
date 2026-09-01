@@ -71,7 +71,10 @@ async function getDownloadStream(_db, version, range) {
 }
 
 async function deleteFile(_db, version) {
-  if (version.utKey) await getApi().deleteFiles(version.utKey).catch(() => {});
+  if (!version.utKey) throw new Error('version has no utKey to delete');
+  // See vercelBlob.deleteFile: errors must reach the caller so the reference
+  // can be kept rather than silently dropped. deleteFiles is idempotent.
+  await getApi().deleteFiles(version.utKey);
 }
 
 async function getUsage() {

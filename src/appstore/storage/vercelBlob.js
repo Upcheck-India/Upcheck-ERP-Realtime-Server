@@ -66,7 +66,13 @@ async function getDownloadStream(_db, version, range) {
 
 async function deleteFile(_db, version) {
   const target = version.blobUrl || version.blobPathname;
-  if (target) await del(target, { token: TOKEN }).catch(() => {});
+  // A version with no blob reference is not a success. Returning quietly here
+  // is how a file with a lost reference used to be reported as deleted.
+  if (!target) throw new Error('version has no blobUrl/blobPathname to delete');
+  // Deliberately NOT swallowed. The caller records an orphan when this throws;
+  // pretending it worked is what left bytes behind with nothing pointing at
+  // them. @vercel/blob del() is idempotent, so deleting twice is fine.
+  await del(target, { token: TOKEN });
 }
 
 async function getUsage() {

@@ -52,9 +52,17 @@ async function getDownloadStream(db, version, range) {
 }
 
 async function deleteFile(db, version) {
-  if (!version.fileId || !ObjectId.isValid(version.fileId)) return;
+  if (!version.fileId || !ObjectId.isValid(version.fileId)) {
+    throw new Error('version has no valid fileId to delete');
+  }
   const bucket = getBucket(db);
-  await bucket.delete(new ObjectId(version.fileId)).catch(() => {});
+  try {
+    await bucket.delete(new ObjectId(version.fileId));
+  } catch (err) {
+    // Already gone is the outcome we wanted, so it is a success — but any
+    // other error must reach the caller instead of being swallowed.
+    if (!/file not found|filenotfound/i.test(String(err && err.message))) throw err;
+  }
 }
 
 async function getUsage(db) {
